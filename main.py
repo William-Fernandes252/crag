@@ -1,5 +1,8 @@
+from crag import graph
+
+
 def main():
-    print("Hello from crag!")
+    print(graph.invoke({"question": "What is agent memory?"}))
 
 
 if __name__ == "__main__":
