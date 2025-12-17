@@ -2,6 +2,7 @@ from crag import graph
 
 
 def main():
+    graph.get_graph().draw_png("graph.png")
     print(graph.invoke({"question": "What is agent memory?"}))
 
 
