@@ -1,6 +1,7 @@
-from typing import Literal
+from typing import Literal, cast
 
 from langchain_core.prompts.chat import ChatPromptTemplate
+from langchain_core.runnables.base import RunnableSerializable
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
@@ -33,4 +34,6 @@ _hallucination_grade_prompt = ChatPromptTemplate.from_messages(
 )
 
 
-hallucination_grader = _hallucination_grade_prompt | _llm
+hallucination_grader = cast(
+    RunnableSerializable[dict, GradeHallucinations], _hallucination_grade_prompt | _llm
+)
