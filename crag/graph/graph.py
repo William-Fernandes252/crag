@@ -6,6 +6,7 @@ from crag.graph.constants import GENERATE, GRADE_DOCUMENTS, RETRIEVE, WEB_SEARCH
 from crag.graph.nodes import generate, grade_documents, retrieve, web_search
 from crag.graph.nodes.chains.answer_grader import answer_grader
 from crag.graph.nodes.chains.hallucination_grader import hallucination_grader
+from crag.graph.nodes.chains.router import question_router
 from crag.graph.state import GraphState
 
 
@@ -14,6 +15,24 @@ def _decide_to_generate(state: GraphState) -> str:
     if state["web_search"]:
         return WEB_SEARCH
     return GENERATE
+
+
+def _route_question(state: GraphState) -> str:
+    """Route a question to the appropriate datasource.
+
+    Args:
+        state (GraphState): The current state of the graph.
+
+    Returns:
+        Route: The chosen route for the question.
+    """
+    question = state["question"]
+    source = question_router.invoke({"question": question})
+    if source.datasource == "vector_store":
+        return RETRIEVE
+    elif source.datasource == "web_search":
+        return WEB_SEARCH
+    return RETRIEVE
 
 
 def _grade_grounded_in_documents_and_question(
@@ -64,7 +83,13 @@ builder.add_node(GRADE_DOCUMENTS, grade_documents)
 builder.add_node(WEB_SEARCH, web_search)
 builder.add_node(GENERATE, generate)
 
-builder.set_entry_point(RETRIEVE)
+builder.set_conditional_entry_point(
+    _route_question,
+    path_map={
+        RETRIEVE: RETRIEVE,
+        WEB_SEARCH: WEB_SEARCH,
+    },
+)
 builder.add_edge(RETRIEVE, GRADE_DOCUMENTS)
 builder.add_conditional_edges(
     GRADE_DOCUMENTS,
