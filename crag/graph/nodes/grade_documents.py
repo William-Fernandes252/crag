@@ -1,3 +1,8 @@
+"""Acts as the Retrieval Evaluator described in the CRAG paper.
+
+It iterates through retrieved documents and uses a LLM-based chain to score their relevance.
+"""
+
 from typing import cast
 
 from crag.graph.nodes.chains.retrieval_grader import GradeDocuments, retrieval_grader

@@ -1,3 +1,7 @@
+"""The final generation stage.
+
+It takes the "refined" knowledge (a combination of retrieved and web documents) and the user's question to produce a CYAN-colored CLI response."""
+
 from crag.graph.nodes.chains.generator import generation_chain
 from crag.graph.state import GraphState
 

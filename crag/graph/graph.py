@@ -1,3 +1,14 @@
+"""The core engine of the system.
+
+It defines the StateGraph and conditional logic for routing and self-correction.
+
+- `_route_question`: Logic to decide the initial datasource.
+
+- `_decide_to_generate`: Determines if the flow proceeds to generation or requires web search first.
+
+- `_grade_grounded_in_documents_and_question`: Implements the reflection loop to ensure answers are "useful" and supported by facts.
+"""
+
 from typing import Literal
 
 from langgraph.graph.state import END, StateGraph

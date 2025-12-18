@@ -1,3 +1,5 @@
+"""Handles communication with the QdrantVectorStore using `text-embedding-3-small` embeddings to fetch documents related to the user's question."""
+
 import os
 
 from langchain_openai.embeddings.base import OpenAIEmbeddings

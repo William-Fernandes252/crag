@@ -1,3 +1,7 @@
+"""Provides the Knowledge Searching action.
+
+It uses the `TavilySearch` tool to fetch up to 3 web results, converting them into standard `Document` objects for the generator."""
+
 from langchain_core.documents import Document
 from langchain_tavily import TavilySearch
 
