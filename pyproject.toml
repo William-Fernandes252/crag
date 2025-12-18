@@ -12,6 +12,9 @@ dependencies = [
     "langchain-qdrant>=1.1.0",
     "langchain-tavily>=0.2.14",
     "langgraph>=1.0.5",
+    "pygraphviz>=1.14",
+    "pypdf>=6.4.2",
+    "typer>=0.20.0",
 ]
 
 [dependency-groups]

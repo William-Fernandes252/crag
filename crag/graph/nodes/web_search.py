@@ -20,7 +20,10 @@ def web_search(state: GraphState) -> GraphState:
 
     results = _web_search_tool.invoke({"query": question})
     web_results_document = Document(
-        page_content="\n\n".join(result["content"] for result in results),
+        page_content="\n\n".join(
+            (result["content"] if isinstance(result, dict) else "")
+            for result in results
+        ),
         metadata={"source": "web_search"},
     )
 

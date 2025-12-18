@@ -1,68 +1,85 @@
-import os
+"""Ingestion module for PDF documents into a Qdrant vector store for RAG."""
 
-from langchain_community.document_loaders import WebBaseLoader
+import asyncio
+import os
+from pathlib import Path
+
+from langchain_community.document_loaders import PyPDFDirectoryLoader, PyPDFLoader
+from langchain_core.document_loaders.base import BaseLoader
 from langchain_openai import OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams
 
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-
-urls = [
-    "https://lilianweng.github.io/posts/2023-06-23-agent/",
-    "https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/",
-    "https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/",
-]
+_QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 
 
-def ingest():
-    """Ingest documents only if the collection is empty/missing."""
+_COLLECTION_NAME = "crag"
 
-    collection_name = "crag_collection"
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-    # 1. Initialize a persistent client (Local path or Server URL)
-    # Using a local path ensures data survives after the script finishes.
-    client = QdrantClient(url="http://localhost:6333")
+_embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
 
-    # 2. Check if collection exists and has documents
-    collection_exists = client.collection_exists(collection_name)
 
-    if collection_exists:
-        # Check if it actually contains data (count > 0)
-        doc_count = client.count(collection_name).count
-        if doc_count > 0:
-            print(
-                f"Collection '{collection_name}' already contains {doc_count} documents. Skipping ingestion."
-            )
-            return QdrantVectorStore(
-                client=client,
-                collection_name=collection_name,
-                embedding=embeddings,
-            )
+_client = QdrantClient(url=_QDRANT_URL)
+if not _client.collection_exists(_COLLECTION_NAME):
+    _client.create_collection(
+        collection_name=_COLLECTION_NAME,
+        vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
+    )
 
-    # 3. If we reach here, we need to ingest
-    print("Collection missing or empty. Starting ingestion...")
 
-    all_docs = []
-    for url in urls:
-        loader = WebBaseLoader(url)
-        docs = loader.load()
-        all_docs.extend(docs)
+_vector_store = QdrantVectorStore(
+    collection_name=_COLLECTION_NAME,
+    client=_client,
+    embedding=_embeddings_model,
+)
 
+
+def _get_loader_for_path(path: Path) -> BaseLoader:
+    """Get the appropriate document loader for the given path.
+
+    Args:
+        path (Path): The path to the document or directory.
+
+    Returns:
+        BaseLoader: The document loader for the given path.
+    """
+    if path.is_dir():
+        return PyPDFDirectoryLoader(str(path))
+    else:
+        return PyPDFLoader(str(path))
+
+
+async def ingest_pdfs(path: Path) -> None:
+    """Ingest PDF documents from the given path into a vector store.
+
+    Args:
+        path (Path): The path to the document or directory of documents to ingest.
+
+    Returns:
+        VectorStore: The vector store containing the ingested documents.
+    """
+    loader = _get_loader_for_path(path)
+
+    docs = await loader.aload()
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200,
     )
-    split_docs = text_splitter.split_documents(all_docs)
+    chunked_documents = text_splitter.split_documents(docs)
 
-    # 4. Create the store using the SAME client
-    vector_store = QdrantVectorStore.from_documents(
-        split_docs,
-        embeddings,
-        collection_name=collection_name,
-        url=QDRANT_URL,
-    )
+    await _vector_store.aadd_documents(chunked_documents)
 
-    print(f"Ingested {len(split_docs)} chunks into '{collection_name}'.")
-    return vector_store
+    print(f"Ingested {len(chunked_documents)} chunks into the vector store.")
+
+
+async def ingest_batch(paths: list[Path]) -> None:
+    """Ingest PDF documents from multiple paths into a vector store.
+
+    Args:
+        paths (list[Path]): The list of paths to documents or directories to ingest.
+    """
+    async with asyncio.TaskGroup() as tg:
+        for path in paths:
+            tg.create_task(ingest_pdfs(path))
